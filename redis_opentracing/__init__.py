@@ -67,7 +67,7 @@ def _patch_client(client):
     pipeline_method = client.pipeline
 
     @wraps(pipeline_method)
-    def tracing_pipeline(self, transaction=True, shard_hint=None):
+    def tracing_pipeline(transaction=True, shard_hint=None):
         pipe = pipeline_method(transaction, shard_hint)
         _patch_pipe_execute(pipe)
         return pipe

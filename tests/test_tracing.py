@@ -90,6 +90,25 @@ class TestClient(unittest.TestCase):
                 'error.object': call_exc,
             })
 
+    def test_trace_client_pipeline(self):
+        redis_opentracing.init_tracing(self.tracer,
+                                       trace_all_classes=False,
+                                       prefix='Test')
+        redis_opentracing.trace_client(self.client)
+
+        pipe = self.client.pipeline()
+        pipe.rpush('my:keys', 1, 3)
+        pipe.rpush('my:keys', 5, 7)
+        pipe.execute()
+        self.assertEqual(len(self.tracer.spans), 1)
+        self.assertEqual(self.tracer.spans[0].operation_name, 'Test/MULTI')
+        self.assertEqual(self.tracer.spans[0].is_finished, True)
+        self.assertEqual(self.tracer.spans[0].tags, {
+            'component': 'redis-py',
+            'db.type': 'redis',
+            'db.statement': 'RPUSH my:keys 1 3;RPUSH my:keys 5 7',
+            'span.kind': 'client',
+        })
 
     def test_trace_pipeline(self):
         pipe = self.client.pipeline()
@@ -200,3 +219,20 @@ class TestClient(unittest.TestCase):
                 'db.statement': 'GET my.key',
                 'span.kind': 'client',
             })
+
+    def test_trace_all_pipeline(self):
+        redis_opentracing.init_tracing(self.tracer, prefix='Test')
+        pipe = self.client.pipeline()
+        pipe.lpush('my:keys', 1, 3)
+        pipe.rpush('my:keys', 5, 7)
+        pipe.execute()
+
+        self.assertEqual(len(self.tracer.spans), 1)
+        self.assertEqual(self.tracer.spans[0].operation_name, 'Test/MULTI')
+        self.assertEqual(self.tracer.spans[0].is_finished, True)
+        self.assertEqual(self.tracer.spans[0].tags, {
+            'component': 'redis-py',
+            'db.type': 'redis',
+            'db.statement': 'LPUSH my:keys 1 3;RPUSH my:keys 5 7',
+            'span.kind': 'client',
+        })
