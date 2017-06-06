@@ -115,6 +115,43 @@ class TestClient(unittest.TestCase):
                 'span.kind': 'client',
             })
 
+    def test_trace_pipeline_empty(self):
+        pipe = self.client.pipeline()
+        with patch.object(pipe, 'execute') as execute:
+            execute.__name__ = 'execute'
+
+            redis_opentracing.init_tracing(self.tracer,
+                                           trace_all_classes=False,
+                                           prefix='Test')
+
+            # No commands at all.
+            redis_opentracing.trace_pipeline(pipe)
+            pipe.execute()
+
+            self.assertEqual(execute.call_count, 1)
+            self.assertEqual(len(self.tracer.spans), 0)
+
+    def test_trace_pipeline_immediate(self):
+        pipe = self.client.pipeline()
+        with patch.object(pipe, 'immediate_execute_command') as iexecute:
+            iexecute.__name__ = 'immediate_execute_command'
+            redis_opentracing.init_tracing(self.tracer,
+                                           trace_all_classes=False,
+                                           prefix='Test')
+
+            redis_opentracing.trace_pipeline(pipe)
+            pipe.immediate_execute_command('WATCH', 'my:key')
+            self.assertEqual(iexecute.call_count, 1)
+            self.assertEqual(len(self.tracer.spans), 1)
+            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/WATCH')
+            self.assertEqual(self.tracer.spans[0].is_finished, True)
+            self.assertEqual(self.tracer.spans[0].tags, {
+                'component': 'redis-py',
+                'db.type': 'redis',
+                'db.statement': 'WATCH my:key',
+                'span.kind': 'client',
+            })
+
     def test_trace_pipeline_error(self):
         pipe = self.client.pipeline()
         with patch.object(pipe, 'execute', side_effect=ValueError) as execute:

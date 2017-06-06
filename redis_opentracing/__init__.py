@@ -59,7 +59,6 @@ def _patch_redis_classes():
 
     redis.StrictRedis.pipeline = tracing_pipeline
 
-
 def _patch_client(client):
     # Patch the outgoing commands.
     _patch_obj_execute_command(client)
@@ -77,10 +76,15 @@ def _patch_client(client):
 
 
 def _patch_pipe_execute(pipe):
+    # Patch the execute() method.
     execute_method = pipe.execute
 
     @wraps(execute_method)
     def tracing_execute(raise_on_error=True):
+        if not pipe.command_stack:
+            # Nothing to process/handle.
+            return execute_method(raise_on_error=raise_on_error)
+
         span = g_tracer.start_span(_get_operation_name('MULTI'))
         _set_base_span_tags(span, _normalize_stmts(pipe.command_stack))
 
@@ -97,6 +101,23 @@ def _patch_pipe_execute(pipe):
 
     pipe.execute = tracing_execute
 
+    # Patch the immediate_execute_command() method.
+    immediate_execute_method = pipe.immediate_execute_command
+    @wraps(immediate_execute_method)
+    def tracing_immediate_execute_command(*args, **options):
+        command = args[0]
+        span = g_tracer.start_span(_get_operation_name(command))
+        _set_base_span_tags(span, _normalize_stmt(args))
+
+        try:
+            res = immediate_execute_method(*args, **options)
+        except Exception as exc:
+            span.set_tag('error', 'true')
+            span.set_tag('error.object', exc)
+        finally:
+            span.finish()
+
+    pipe.immediate_execute_command = tracing_immediate_execute_command
 
 def _patch_obj_execute_command(redis_obj, is_klass=False):
     execute_command_method = redis_obj.execute_command
