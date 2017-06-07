@@ -7,6 +7,17 @@ g_trace_prefix = None
 g_trace_all_classes = True
 
 def init_tracing(tracer, trace_all_classes=True, prefix='Redis'):
+    '''
+    Set our tracer for Redis. Tracer objects from our
+    django/flask/pyramid libraries can be passed as well.
+
+    :param tracer: the tracer object.
+    :param trace_all_classes: If True, Redis clients and pipelines
+        are automatically traced. Else, explicit tracing on them
+        is required.
+    :param prefix: The prefix for the operation name, if any.
+        By default it is set to 'Redis'.
+    '''
     global g_tracer, g_trace_all_classes, g_trace_prefix
     if hasattr(tracer, '_tracer'):
         tracer = tracer._tracer
@@ -19,9 +30,22 @@ def init_tracing(tracer, trace_all_classes=True, prefix='Redis'):
         _patch_redis_classes()
 
 def trace_client(client):
+    '''
+    Marks a client to be traced. All commands and pipelines executed
+    through this client will be traced.
+
+    :param client: the Redis client object.
+    '''
     _patch_client(client)
 
 def trace_pipeline(pipe):
+    '''
+    Marks a pipeline to be traced.
+
+    :param client: the Redis pipeline object to be traced.
+    If executed as a transaction, the commands will appear
+    under a single 'MULTI' operation.
+    '''
     _patch_pipe_execute(pipe)
 
 def _get_operation_name(operation_name):
