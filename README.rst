@@ -14,7 +14,7 @@ Run the following command:
 Getting started
 ===============
 
-Please see the examples directory. Overall, usage requires that a tracer gets set and have the Redis client and pipelines functionality get automatically traced:
+Tracing a Redis client requires setting up an OpenTracing-compatible tracer, and calling `init_tracing` to set up the tracing wrappers. See the examples directory for several different approaches.
 
 .. code-block:: python
 
@@ -26,7 +26,7 @@ Please see the examples directory. Overall, usage requires that a tracer gets se
     client = redis.StrictRedis()
     client.set('last_access', datetime.datetime.now())
 
-It's possible to have traced only specific `StrictRedis` client objects:
+It's possible to trace only specific Redis clients:
 
 .. code-block:: python
 
@@ -52,7 +52,7 @@ It's also possible to trace only specific pipelines:
     pipe.execute()
 
 
-A thing to notice about pipelines is that when executed as a transaction, the set of commands will be included under a single 'MULTI' operation. Else, specially with commands required to be executed immediately, tracing will happen one-by-one (i.e. the `WATCH` command).
+When pipeline commands are executed as a transaction, these commands will be grouped under a single 'MULTI' operation. They'll also appear as a single operation in the trace. Outside of a transaction, each command will generate a span.
 
 Further information
 ===================
