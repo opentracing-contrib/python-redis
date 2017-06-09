@@ -8,8 +8,8 @@ g_trace_all_classes = True
 
 def init_tracing(tracer, trace_all_classes=True, prefix='Redis'):
     '''
-    Set our tracer for Redis. Tracer objects from our
-    django/flask/pyramid libraries can be passed as well.
+    Set our tracer for Redis. Tracer objects from the
+    OpenTracing django/flask/pyramid libraries can be passed as well.
 
     :param tracer: the tracer object.
     :param trace_all_classes: If True, Redis clients and pipelines
