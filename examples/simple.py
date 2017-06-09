@@ -1,13 +1,10 @@
 import datetime
 import redis
 
-import lightstep
 import redis_opentracing
 
-tracer = lightstep.Tracer(
-    component_name='redis-simple',
-    access_token='{your_lightstep_token}'
-)
+# Your OpenTracing-compatible tracer here.
+tracer = None
 
 if __name__ == '__main__':
     client = redis.StrictRedis()
