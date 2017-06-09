@@ -4,8 +4,8 @@ Redis Opentracing
 
 This package enables distributed tracing for the Python redis library.
 
-Instalation
-===========
+Installation
+============
 
 Run the following command:
 
