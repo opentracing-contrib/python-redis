@@ -4,8 +4,8 @@ version = open('VERSION').read()
 setup(
     name='redis_opentracing',
     version=version,
-    url='https://github.com/carlosalberto/python-redis/',
-    download_url='https://github.com/carlosalberto/python-redis/tarball/'+version,
+    url='https://github.com/opentracing-contrib/python-redis/',
+    download_url='https://github.com/opentracing-contrib/python-redis/tarball/'+version,
     license='BSD',
     author='Carlos Alberto Cortez',
     author_email='calberto.cortez@gmail.com',
