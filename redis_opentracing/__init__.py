@@ -48,6 +48,18 @@ def trace_pipeline(pipe):
     '''
     _patch_pipe_execute(pipe)
 
+def trace_pubsub(pubsub):
+    '''
+    Marks a pubsub object to be traced.
+
+    :param pubsub: the Redis pubsub object to be traced.
+    Incoming messages through get_message(), listen() and
+    run_in_thread() will appear with an operation named 'SUB'.
+    Commands executed on this object through execute_command()
+    will be traced too with their respective command name.
+    '''
+    _patch_pubsub(pubsub)
+
 def _get_operation_name(operation_name):
     if g_trace_prefix is not None:
         operation_name = '{0}/{1}'.format(g_trace_prefix, operation_name)
@@ -83,6 +95,17 @@ def _patch_redis_classes():
 
     redis.StrictRedis.pipeline = tracing_pipeline
 
+    # Patch the created pubsubs.
+    pubsub_method = redis.StrictRedis.pubsub
+
+    @wraps(pubsub_method)
+    def tracing_pubsub(self, **kwargs):
+        pubsub = pubsub_method(self, **kwargs)
+        _patch_pubsub(pubsub)
+        return pubsub
+
+    redis.StrictRedis.pubsub = tracing_pubsub
+
 def _patch_client(client):
     # Patch the outgoing commands.
     _patch_obj_execute_command(client)
@@ -97,6 +120,17 @@ def _patch_client(client):
         return pipe
 
     client.pipeline = tracing_pipeline
+
+    #Patch the created pubsubs.
+    pubsub_method = client.pubsub
+
+    @wraps(pubsub_method)
+    def tracing_pubsub(**kwargs):
+        pubsub = pubsub_method(**kwargs)
+        _patch_pubsub(pubsub)
+        return pubsub
+
+    client.pubsub = tracing_pubsub
 
 
 def _patch_pipe_execute(pipe):
@@ -142,6 +176,32 @@ def _patch_pipe_execute(pipe):
             span.finish()
 
     pipe.immediate_execute_command = tracing_immediate_execute_command
+
+def _patch_pubsub(pubsub):
+    _patch_pubsub_parse_response(pubsub)
+    _patch_obj_execute_command(pubsub)
+
+def _patch_pubsub_parse_response(pubsub):
+    # Patch the parse_response() method.
+    parse_response_method = pubsub.parse_response
+
+    @wraps(parse_response_method)
+    def tracing_parse_response(block=True, timeout=0):
+        span = g_tracer.start_span(_get_operation_name('SUB'))
+        _set_base_span_tags(span, '')
+
+        try:
+            rv = parse_response_method(block=block, timeout=timeout)
+        except Exception as exc:
+            span.set_tag('error', 'true')
+            span.set_tag('error.object', exc)
+            raise
+        finally:
+            span.finish()
+
+        return rv
+
+    pubsub.parse_response = tracing_parse_response
 
 def _patch_obj_execute_command(redis_obj, is_klass=False):
     execute_command_method = redis_obj.execute_command

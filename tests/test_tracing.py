@@ -110,6 +110,26 @@ class TestClient(unittest.TestCase):
             'span.kind': 'client',
         })
 
+    def test_trace_client_pubsub(self):
+        redis_opentracing.init_tracing(self.tracer,
+                                       trace_all_classes=False,
+                                       prefix='Test')
+        redis_opentracing.trace_client(self.client)
+
+        pubsub = self.client.pubsub()
+        pubsub.subscribe('test')
+
+        # Subscribing can cause more than a SUBSCRIBE call.
+        self.assertTrue(len(self.tracer.spans) >= 1)
+        self.assertEqual(self.tracer.spans[0].operation_name, 'Test/SUBSCRIBE')
+        self.assertEqual(self.tracer.spans[0].is_finished, True)
+        self.assertEqual(self.tracer.spans[0].tags, {
+            'component': 'redis-py',
+            'db.type': 'redis',
+            'db.statement': 'SUBSCRIBE test',
+            'span.kind': 'client',
+        })
+
     def test_trace_pipeline(self):
         pipe = self.client.pipeline()
         with patch.object(pipe, 'execute') as execute:
@@ -202,6 +222,98 @@ class TestClient(unittest.TestCase):
                 'error.object': call_exc,
             })
 
+    def test_trace_pubsub(self):
+        pubsub = self.client.pubsub()
+        return_value = [ # Simulate a real message
+            'pmessage',
+            'pattern1',
+            'channel1',
+            'hello',
+        ]
+
+        with patch.object(pubsub, 'parse_response',
+                          return_value=return_value) as parse_response:
+            parse_response.__name__ = 'parse_response'
+
+            redis_opentracing.init_tracing(self.tracer,
+                                           trace_all_classes=False,
+                                           prefix='Test')
+            redis_opentracing.trace_pubsub(pubsub)
+            res = pubsub.get_message()
+
+            self.assertEqual(res, {
+                'type': 'pmessage',
+                'pattern': 'pattern1',
+                'channel': 'channel1',
+                'data': 'hello',
+            })
+            self.assertEqual(parse_response.call_count, 1)
+            self.assertEqual(len(self.tracer.spans), 1)
+            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/SUB')
+            self.assertEqual(self.tracer.spans[0].is_finished, True)
+            self.assertEqual(self.tracer.spans[0].tags, {
+                'component': 'redis-py',
+                'db.type': 'redis',
+                'db.statement': '',
+                'span.kind': 'client',
+            })
+
+    def test_trace_pubsub_execute_command(self):
+        pubsub = self.client.pubsub()
+
+        with patch.object(pubsub, 'execute_command',
+                          return_value='hello') as execute_command:
+            execute_command.__name__ = 'parse_response'
+
+            redis_opentracing.init_tracing(self.tracer,
+                                           trace_all_classes=False,
+                                           prefix='Test')
+            redis_opentracing.trace_pubsub(pubsub)
+            res = pubsub.execute_command('GET', 'foo')
+
+            self.assertEqual(res, 'hello')
+            self.assertEqual(execute_command.call_count, 1)
+            self.assertEqual(len(self.tracer.spans), 1)
+            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/GET')
+            self.assertEqual(self.tracer.spans[0].is_finished, True)
+            self.assertEqual(self.tracer.spans[0].tags, {
+                'component': 'redis-py',
+                'db.type': 'redis',
+                'db.statement': 'GET foo',
+                'span.kind': 'client',
+            })
+
+    def test_trace_pubsub_error(self):
+        pubsub = self.client.pubsub()
+
+        with patch.object(pubsub, 'parse_response',
+                          side_effect=ValueError) as parse_response:
+            parse_response.__name__ = 'parse_response'
+
+            redis_opentracing.init_tracing(self.tracer,
+                                           trace_all_classes=False,
+                                           prefix='Test')
+            redis_opentracing.trace_pubsub(pubsub)
+
+            call_exc = None
+            try:
+                pubsub.get_message()
+            except ValueError as exc:
+                call_exc = exc
+
+            self.assertEqual(parse_response.call_count, 1)
+            self.assertEqual(len(self.tracer.spans), 1)
+            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/SUB')
+            self.assertEqual(self.tracer.spans[0].is_finished, True)
+            self.assertEqual(self.tracer.spans[0].tags, {
+                'component': 'redis-py',
+                'db.type': 'redis',
+                'db.statement': '',
+                'span.kind': 'client',
+                'error': 'true',
+                'error.object': call_exc,
+            })
+
     def test_trace_all_client(self):
         with patch('redis.StrictRedis.execute_command') as execute_command:
             execute_command.__name__ = 'execute_command'
@@ -234,5 +346,21 @@ class TestClient(unittest.TestCase):
             'component': 'redis-py',
             'db.type': 'redis',
             'db.statement': 'LPUSH my:keys 1 3;RPUSH my:keys 5 7',
+            'span.kind': 'client',
+        })
+
+    def test_trace_all_pubsub(self):
+        redis_opentracing.init_tracing(self.tracer, prefix='Test')
+        pubsub = self.client.pubsub()
+        pubsub.subscribe('test')
+
+        # Subscribing can cause more than a SUBSCRIBE call.
+        self.assertTrue(len(self.tracer.spans) >= 1)
+        self.assertEqual(self.tracer.spans[0].operation_name, 'Test/SUBSCRIBE')
+        self.assertEqual(self.tracer.spans[0].is_finished, True)
+        self.assertEqual(self.tracer.spans[0].tags, {
+            'component': 'redis-py',
+            'db.type': 'redis',
+            'db.statement': 'SUBSCRIBE test',
             'span.kind': 'client',
         })

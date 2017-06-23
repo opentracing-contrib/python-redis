@@ -51,8 +51,21 @@ It's also possible to trace only specific pipelines:
     pipe.rpush('fruits', 'pineapple', 'apple')
     pipe.execute()
 
-
 When pipeline commands are executed as a transaction, these commands will be grouped under a single 'MULTI' operation. They'll also appear as a single operation in the trace. Outside of a transaction, each command will generate a span.
+
+And it's also possible to trace only specific pubsub objects:
+
+.. code-block:: python
+
+    redis_opentracing.init_tracing(tracer, trace_all_classes=False)
+
+    pubsub = client.pubsub()
+    redis_opentracing.trace_pubsub(pubsub)
+
+    pubsub.subscribe('incoming-fruits')
+    msg = pubsub.get_message() # This message will appear as a 'SUB' operation.
+
+Incoming messages through `get_message`, `listen` and `run_in_thread` will be traced, and any command executed through the pubsub's `execute_command` method will be traced too.
 
 Further information
 ===================
