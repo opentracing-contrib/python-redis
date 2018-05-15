@@ -76,3 +76,6 @@ If you’re interested in learning more about the OpenTracing standard, please v
 .. _join the mailing list: http://opentracing.us13.list-manage.com/subscribe?u=180afe03860541dae59e84153&id=19117aa6cd
 .. _community@opentracing.io: community@opentracing.io
 
+License
+=======
+`Apache 2.0 License <https://github.com/opentracing-contrib/python-redis/blob/master/LICENSE>`_
