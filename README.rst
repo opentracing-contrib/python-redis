@@ -1,3 +1,8 @@
+
+.. image:: https://travis-ci.org/opentracing-contrib/python-redis.svg?branch=master
+    :target: http://travis-ci.org/opentracing-contrib/python-redis
+    :alt: Build Status
+
 #################
 Redis Opentracing
 #################
