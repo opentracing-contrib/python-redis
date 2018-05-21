@@ -10,7 +10,7 @@ services:
 
 before_install:
 - docker pull library/redis
-- docker run -d redis
+- docker run -d -p 6379:6379 redis
 install:
   - pip install -r requirements.txt
 # command to run tests
