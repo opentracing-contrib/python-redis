@@ -15,8 +15,15 @@ setup(
     platforms='any',
     install_requires=[
         'redis',
-        'opentracing>=1.1,<1.2'
+        'opentracing>=2.0,<2.1'
     ],
+    extras_require={
+        'tests': [
+            'mock',
+            'pytest',
+            'pytest-cov',
+        ],
+    },
     classifiers=[
         'Intended Audience :: Developers',
         'License :: OSI Approved :: BSD License',

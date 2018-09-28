@@ -143,17 +143,16 @@ def _patch_pipe_execute(pipe):
             # Nothing to process/handle.
             return execute_method(raise_on_error=raise_on_error)
 
-        span = g_tracer.start_span(_get_operation_name('MULTI'))
-        _set_base_span_tags(span, _normalize_stmts(pipe.command_stack))
+        with g_tracer.start_active_span(_get_operation_name('MULTI')) as scope:
+            span = scope.span
+            _set_base_span_tags(span, _normalize_stmts(pipe.command_stack))
 
-        try:
-            res = execute_method(raise_on_error=raise_on_error)
-        except Exception as exc:
-            span.set_tag('error', 'true')
-            span.set_tag('error.object', exc)
-            raise
-        finally:
-            span.finish()
+            try:
+                res = execute_method(raise_on_error=raise_on_error)
+            except Exception as exc:
+                span.set_tag('error', 'true')
+                span.set_tag('error.object', exc)
+                raise
 
         return res
 
@@ -164,16 +163,15 @@ def _patch_pipe_execute(pipe):
     @wraps(immediate_execute_method)
     def tracing_immediate_execute_command(*args, **options):
         command = args[0]
-        span = g_tracer.start_span(_get_operation_name(command))
-        _set_base_span_tags(span, _normalize_stmt(args))
+        with g_tracer.start_active_span(_get_operation_name(command)) as scope:
+            span = scope.span
+            _set_base_span_tags(span, _normalize_stmt(args))
 
-        try:
-            res = immediate_execute_method(*args, **options)
-        except Exception as exc:
-            span.set_tag('error', 'true')
-            span.set_tag('error.object', exc)
-        finally:
-            span.finish()
+            try:
+                res = immediate_execute_method(*args, **options)
+            except Exception as exc:
+                span.set_tag('error', 'true')
+                span.set_tag('error.object', exc)
 
     pipe.immediate_execute_command = tracing_immediate_execute_command
 
@@ -187,17 +185,16 @@ def _patch_pubsub_parse_response(pubsub):
 
     @wraps(parse_response_method)
     def tracing_parse_response(block=True, timeout=0):
-        span = g_tracer.start_span(_get_operation_name('SUB'))
-        _set_base_span_tags(span, '')
+        with g_tracer.start_active_span(_get_operation_name('SUB')) as scope:
+            span = scope.span
+            _set_base_span_tags(span, '')
 
-        try:
-            rv = parse_response_method(block=block, timeout=timeout)
-        except Exception as exc:
-            span.set_tag('error', 'true')
-            span.set_tag('error.object', exc)
-            raise
-        finally:
-            span.finish()
+            try:
+                rv = parse_response_method(block=block, timeout=timeout)
+            except Exception as exc:
+                span.set_tag('error', 'true')
+                span.set_tag('error.object', exc)
+                raise
 
         return rv
 
@@ -216,17 +213,16 @@ def _patch_obj_execute_command(redis_obj, is_klass=False):
 
         command = reported_args[0]
 
-        span = g_tracer.start_span(_get_operation_name(command))
-        _set_base_span_tags(span, _normalize_stmt(reported_args))
+        with g_tracer.start_active_span(_get_operation_name(command)) as scope:
+            span = scope.span
+            _set_base_span_tags(span, _normalize_stmt(reported_args))
 
-        try:
-            rv = execute_command_method(*args, **kwargs)
-        except Exception as exc:
-            span.set_tag('error', 'true')
-            span.set_tag('error.object', exc)
-            raise
-        finally:
-            span.finish()
+            try:
+                rv = execute_command_method(*args, **kwargs)
+            except Exception as exc:
+                span.set_tag('error', 'true')
+                span.set_tag('error.object', exc)
+                raise
 
         return rv
 
