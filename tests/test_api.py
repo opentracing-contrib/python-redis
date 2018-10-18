@@ -1,9 +1,8 @@
+from opentracing.mocktracer import MockTracer
 import unittest
 
 import redis
 import redis_opentracing
-
-from .dummies import *
 
 
 class TestGlobalCalls(unittest.TestCase):
@@ -18,7 +17,7 @@ class TestGlobalCalls(unittest.TestCase):
         redis.StrictRedis.pipeline = self._pipeline
 
     def test_init(self):
-        tracer = DummyTracer()
+        tracer = MockTracer()
         redis_opentracing.init_tracing(tracer)
         self.assertEqual(tracer, redis_opentracing.g_tracer)
         self.assertEqual(True, redis_opentracing.g_trace_all_classes)
@@ -26,7 +25,8 @@ class TestGlobalCalls(unittest.TestCase):
 
 
     def test_init_subtracer(self):
-        tracer = DummyTracer(with_subtracer=True)
+        tracer = MockTracer()
+        tracer._tracer = object()
         redis_opentracing.init_tracing(tracer)
         self.assertEqual(tracer._tracer, redis_opentracing.g_tracer)
         self.assertEqual(True, redis_opentracing.g_trace_all_classes)
@@ -34,8 +34,8 @@ class TestGlobalCalls(unittest.TestCase):
 
 
     def test_init_trace_prefix(self):
-        redis_opentracing.init_tracing(DummyTracer(), prefix='Prod007')
+        redis_opentracing.init_tracing(MockTracer(), prefix='Prod007')
         self.assertEqual('Prod007', redis_opentracing.g_trace_prefix)
 
-        redis_opentracing.init_tracing(DummyTracer(), prefix='')
+        redis_opentracing.init_tracing(MockTracer(), prefix='')
         self.assertEqual('', redis_opentracing.g_trace_prefix)

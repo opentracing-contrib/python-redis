@@ -1,15 +1,14 @@
+from opentracing.mocktracer import MockTracer
 from mock import patch
 import unittest
 
 import redis
 import redis_opentracing
 
-from .dummies import *
-
 
 class TestClient(unittest.TestCase):
     def setUp(self):
-        self.tracer = DummyTracer()
+        self.tracer = MockTracer()
         self.client = redis.StrictRedis()
 
         # Stash away the original methods for
@@ -32,7 +31,7 @@ class TestClient(unittest.TestCase):
 
             self.client.get('my.key')
             self.assertEqual(exc_command.call_count, 1)
-            self.assertEqual(len(self.tracer.spans), 0)
+            self.assertEqual(len(self.tracer.finished_spans()), 0)
 
     def test_trace_client(self):
         with patch.object(self.client,
@@ -49,10 +48,10 @@ class TestClient(unittest.TestCase):
             self.assertEqual(res, '1')
             self.assertEqual(exc_command.call_count, 1)
             self.assertTrue(True, exc_command.call_args == (('my.key',),))
-            self.assertEqual(len(self.tracer.spans), 1)
-            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/GET')
-            self.assertEqual(self.tracer.spans[0].is_finished, True)
-            self.assertEqual(self.tracer.spans[0].tags, {
+            self.assertEqual(len(self.tracer.finished_spans()), 1)
+            span = self.tracer.finished_spans()[0]
+            self.assertEqual(span.operation_name, 'Test/GET')
+            self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
                 'db.statement': 'GET my.key',
@@ -78,10 +77,10 @@ class TestClient(unittest.TestCase):
 
             self.assertEqual(exc_command.call_count, 1)
             self.assertTrue(True, exc_command.call_args == (('my.key',),))
-            self.assertEqual(len(self.tracer.spans), 1)
-            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/GET')
-            self.assertEqual(self.tracer.spans[0].is_finished, True)
-            self.assertEqual(self.tracer.spans[0].tags, {
+            self.assertEqual(len(self.tracer.finished_spans()), 1)
+            span = self.tracer.finished_spans()[0]
+            self.assertEqual(span.operation_name, 'Test/GET')
+            self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
                 'db.statement': 'GET my.key',
@@ -100,10 +99,10 @@ class TestClient(unittest.TestCase):
         pipe.rpush('my:keys', 1, 3)
         pipe.rpush('my:keys', 5, 7)
         pipe.execute()
-        self.assertEqual(len(self.tracer.spans), 1)
-        self.assertEqual(self.tracer.spans[0].operation_name, 'Test/MULTI')
-        self.assertEqual(self.tracer.spans[0].is_finished, True)
-        self.assertEqual(self.tracer.spans[0].tags, {
+        self.assertEqual(len(self.tracer.finished_spans()), 1)
+        span = self.tracer.finished_spans()[0]
+        self.assertEqual(span.operation_name, 'Test/MULTI')
+        self.assertEqual(span.tags, {
             'component': 'redis-py',
             'db.type': 'redis',
             'db.statement': 'RPUSH my:keys 1 3;RPUSH my:keys 5 7',
@@ -120,10 +119,10 @@ class TestClient(unittest.TestCase):
         pubsub.subscribe('test')
 
         # Subscribing can cause more than a SUBSCRIBE call.
-        self.assertTrue(len(self.tracer.spans) >= 1)
-        self.assertEqual(self.tracer.spans[0].operation_name, 'Test/SUBSCRIBE')
-        self.assertEqual(self.tracer.spans[0].is_finished, True)
-        self.assertEqual(self.tracer.spans[0].tags, {
+        self.assertTrue(len(self.tracer.finished_spans()) >= 1)
+        span = self.tracer.finished_spans()[0]
+        self.assertEqual(span.operation_name, 'Test/SUBSCRIBE')
+        self.assertEqual(span.tags, {
             'component': 'redis-py',
             'db.type': 'redis',
             'db.statement': 'SUBSCRIBE test',
@@ -144,10 +143,9 @@ class TestClient(unittest.TestCase):
             pipe.execute()
 
             self.assertEqual(execute.call_count, 1)
-            self.assertEqual(len(self.tracer.spans), 1)
-            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/MULTI')
-            self.assertEqual(self.tracer.spans[0].is_finished, True)
-            self.assertEqual(self.tracer.spans[0].tags, {
+            self.assertEqual(len(self.tracer.finished_spans()), 1)
+            self.assertEqual(self.tracer.finished_spans()[0].operation_name, 'Test/MULTI')
+            self.assertEqual(self.tracer.finished_spans()[0].tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
                 'db.statement': 'LPUSH my:keys 1 3;LPUSH my:keys 5 7',
@@ -168,7 +166,7 @@ class TestClient(unittest.TestCase):
             pipe.execute()
 
             self.assertEqual(execute.call_count, 1)
-            self.assertEqual(len(self.tracer.spans), 0)
+            self.assertEqual(len(self.tracer.finished_spans()), 0)
 
     def test_trace_pipeline_immediate(self):
         pipe = self.client.pipeline()
@@ -181,10 +179,10 @@ class TestClient(unittest.TestCase):
             redis_opentracing.trace_pipeline(pipe)
             pipe.immediate_execute_command('WATCH', 'my:key')
             self.assertEqual(iexecute.call_count, 1)
-            self.assertEqual(len(self.tracer.spans), 1)
-            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/WATCH')
-            self.assertEqual(self.tracer.spans[0].is_finished, True)
-            self.assertEqual(self.tracer.spans[0].tags, {
+            self.assertEqual(len(self.tracer.finished_spans()), 1)
+            span = self.tracer.finished_spans()[0]
+            self.assertEqual(span.operation_name, 'Test/WATCH')
+            self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
                 'db.statement': 'WATCH my:key',
@@ -210,10 +208,10 @@ class TestClient(unittest.TestCase):
                 call_exc = exc
 
             self.assertEqual(execute.call_count, 1)
-            self.assertEqual(len(self.tracer.spans), 1)
-            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/MULTI')
-            self.assertEqual(self.tracer.spans[0].is_finished, True)
-            self.assertEqual(self.tracer.spans[0].tags, {
+            self.assertEqual(len(self.tracer.finished_spans()), 1)
+            span = self.tracer.finished_spans()[0]
+            self.assertEqual(span.operation_name, 'Test/MULTI')
+            self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
                 'db.statement': 'LPUSH my:keys 1 3;LPUSH my:keys 5 7',
@@ -248,10 +246,9 @@ class TestClient(unittest.TestCase):
                 'data': 'hello',
             })
             self.assertEqual(parse_response.call_count, 1)
-            self.assertEqual(len(self.tracer.spans), 1)
-            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/SUB')
-            self.assertEqual(self.tracer.spans[0].is_finished, True)
-            self.assertEqual(self.tracer.spans[0].tags, {
+            self.assertEqual(len(self.tracer.finished_spans()), 1)
+            self.assertEqual(self.tracer.finished_spans()[0].operation_name, 'Test/SUB')
+            self.assertEqual(self.tracer.finished_spans()[0].tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
                 'db.statement': '',
@@ -273,10 +270,9 @@ class TestClient(unittest.TestCase):
 
             self.assertEqual(res, 'hello')
             self.assertEqual(execute_command.call_count, 1)
-            self.assertEqual(len(self.tracer.spans), 1)
-            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/GET')
-            self.assertEqual(self.tracer.spans[0].is_finished, True)
-            self.assertEqual(self.tracer.spans[0].tags, {
+            self.assertEqual(len(self.tracer.finished_spans()), 1)
+            self.assertEqual(self.tracer.finished_spans()[0].operation_name, 'Test/GET')
+            self.assertEqual(self.tracer.finished_spans()[0].tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
                 'db.statement': 'GET foo',
@@ -302,10 +298,10 @@ class TestClient(unittest.TestCase):
                 call_exc = exc
 
             self.assertEqual(parse_response.call_count, 1)
-            self.assertEqual(len(self.tracer.spans), 1)
-            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/SUB')
-            self.assertEqual(self.tracer.spans[0].is_finished, True)
-            self.assertEqual(self.tracer.spans[0].tags, {
+            self.assertEqual(len(self.tracer.finished_spans()), 1)
+            span = self.tracer.finished_spans()[0]
+            self.assertEqual(span.operation_name, 'Test/SUB')
+            self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
                 'db.statement': '',
@@ -322,10 +318,10 @@ class TestClient(unittest.TestCase):
             self.client.get('my.key')
             self.assertEqual(execute_command.call_count, 1)
             self.assertTrue(True, execute_command.call_args == (('my.key',),))
-            self.assertEqual(len(self.tracer.spans), 1)
-            self.assertEqual(self.tracer.spans[0].operation_name, 'Test/GET')
-            self.assertEqual(self.tracer.spans[0].is_finished, True)
-            self.assertEqual(self.tracer.spans[0].tags, {
+            self.assertEqual(len(self.tracer.finished_spans()), 1)
+            span = self.tracer.finished_spans()[0]
+            self.assertEqual(span.operation_name, 'Test/GET')
+            self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
                 'db.statement': 'GET my.key',
@@ -339,10 +335,10 @@ class TestClient(unittest.TestCase):
         pipe.rpush('my:keys', 5, 7)
         pipe.execute()
 
-        self.assertEqual(len(self.tracer.spans), 1)
-        self.assertEqual(self.tracer.spans[0].operation_name, 'Test/MULTI')
-        self.assertEqual(self.tracer.spans[0].is_finished, True)
-        self.assertEqual(self.tracer.spans[0].tags, {
+        self.assertEqual(len(self.tracer.finished_spans()), 1)
+        span = self.tracer.finished_spans()[0]
+        self.assertEqual(span.operation_name, 'Test/MULTI')
+        self.assertEqual(span.tags, {
             'component': 'redis-py',
             'db.type': 'redis',
             'db.statement': 'LPUSH my:keys 1 3;RPUSH my:keys 5 7',
@@ -355,10 +351,10 @@ class TestClient(unittest.TestCase):
         pubsub.subscribe('test')
 
         # Subscribing can cause more than a SUBSCRIBE call.
-        self.assertTrue(len(self.tracer.spans) >= 1)
-        self.assertEqual(self.tracer.spans[0].operation_name, 'Test/SUBSCRIBE')
-        self.assertEqual(self.tracer.spans[0].is_finished, True)
-        self.assertEqual(self.tracer.spans[0].tags, {
+        self.assertTrue(len(self.tracer.finished_spans()) >= 1)
+        span = self.tracer.finished_spans()[0]
+        self.assertEqual(span.operation_name, 'Test/SUBSCRIBE')
+        self.assertEqual(span.tags, {
             'component': 'redis-py',
             'db.type': 'redis',
             'db.statement': 'SUBSCRIBE test',
