@@ -3,6 +3,11 @@
 install: 
 	python setup.py install
 
+bootstrap:
+	pip install -r requirements.txt
+	pip install -r requirements-test.txt
+	python setup.py develop
+
 clean: clean-build clean-pyc
 
 clean-build:

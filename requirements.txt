@@ -1,2 +1,3 @@
-redis
-opentracing
+# add dependencies in setup.py
+ 
+-e .
