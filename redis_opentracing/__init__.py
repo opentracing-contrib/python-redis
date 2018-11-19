@@ -178,7 +178,7 @@ def _patch_pipe_execute(pipe):
             _set_base_span_tags(span, _normalize_stmt(args))
 
             try:
-                res = immediate_execute_method(*args, **options)
+                immediate_execute_method(*args, **options)
             except Exception as exc:
                 span.set_tag('error', 'true')
                 span.set_tag('error.object', exc)
