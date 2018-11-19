@@ -1,7 +1,14 @@
+project := redis_opentracing
+
 .PHONY: test publish install clean clean-build clean-pyc clean-test build
 
 install: 
 	python setup.py install
+
+bootstrap:
+	pip install -r requirements.txt
+	pip install -r requirements-test.txt
+	python setup.py develop
 
 clean: clean-build clean-pyc
 
@@ -23,8 +30,11 @@ clean-pyc:
 clean-test:
 	rm -f .coverage
 
+lint:
+	flake8 $(project)
+
 test:
-	py.test -s --cov=redis_opentracing
+	py.test -s --cov=$(project)
 
 build: 
 	python setup.py build

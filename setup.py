@@ -19,10 +19,12 @@ setup(
     ],
     extras_require={
         'tests': [
-            'mock',
-            'pytest',
+            'flake8<3',
+            'flake8-quotes',
+            'mock<1.1.0',
+            'pytest>=2.7,<3',
             'pytest-cov',
-        ],
+        ]
     },
     classifiers=[
         'Intended Audience :: Developers',

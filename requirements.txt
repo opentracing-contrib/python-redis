@@ -1,2 +1,3 @@
-redis
-opentracing>=2.0,<2.1
+# add dependencies in setup.py
+ 
+-e .
