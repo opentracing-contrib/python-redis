@@ -1,6 +1,7 @@
 from functools import wraps
 
 import opentracing
+from opentracing.ext import tags
 import redis
 
 g_tracer = None
@@ -87,10 +88,10 @@ def _normalize_stmts(command_stack):
 
 
 def _set_base_span_tags(span, stmt):
-    span.set_tag('component', 'redis-py')
-    span.set_tag('db.type', 'redis')
-    span.set_tag('db.statement', stmt)
-    span.set_tag('span.kind', 'client')
+    span.set_tag(tags.COMPONENT, 'redis-py')
+    span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_RPC_CLIENT)
+    span.set_tag(tags.DATABASE_TYPE, 'redis')
+    span.set_tag(tags.DATABASE_STATEMENT, stmt)
 
 
 def _patch_redis_classes():
@@ -166,8 +167,11 @@ def _patch_pipe_execute(pipe):
             try:
                 res = execute_method(raise_on_error=raise_on_error)
             except Exception as exc:
-                span.set_tag('error', 'true')
-                span.set_tag('error.object', exc)
+                span.set_tag(tags.ERROR, True)
+                span.log_kv({
+                    'event': tags.ERROR,
+                    'error.object': exc,
+                })
                 raise
 
         return res
@@ -187,8 +191,11 @@ def _patch_pipe_execute(pipe):
             try:
                 immediate_execute_method(*args, **options)
             except Exception as exc:
-                span.set_tag('error', 'true')
-                span.set_tag('error.object', exc)
+                span.set_tag(tags.ERROR, True)
+                span.log_kv({
+                    'event': tags.ERROR,
+                    'error.object': exc,
+                })
 
     pipe.immediate_execute_command = tracing_immediate_execute_command
 
@@ -213,8 +220,11 @@ def _patch_pubsub_parse_response(pubsub):
             try:
                 rv = parse_response_method(block=block, timeout=timeout)
             except Exception as exc:
-                span.set_tag('error', 'true')
-                span.set_tag('error.object', exc)
+                span.set_tag(tags.ERROR, True)
+                span.log_kv({
+                    'event': tags.ERROR,
+                    'error.object': exc,
+                })
                 raise
 
         return rv
@@ -244,8 +254,11 @@ def _patch_obj_execute_command(redis_obj, is_klass=False):
             try:
                 rv = execute_command_method(*args, **kwargs)
             except Exception as exc:
-                span.set_tag('error', 'true')
-                span.set_tag('error.object', exc)
+                span.set_tag(tags.ERROR, True)
+                span.log_kv({
+                    'event': tags.ERROR,
+                    'error.object': exc,
+                })
                 raise
 
         return rv
