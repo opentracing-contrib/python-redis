@@ -85,9 +85,14 @@ class TestClient(unittest.TestCase):
                 'db.type': 'redis',
                 'db.statement': 'GET my.key',
                 'span.kind': 'client',
-                'error': 'true',
-                'error.object': call_exc,
+                'error': True,
             })
+            self.assertEqual(len(span.logs), 1)
+            self.assertEqual(span.logs[0].key_values.get('event', None),
+                             'error')
+            self.assertTrue(isinstance(
+                span.logs[0].key_values.get('error.object', None), ValueError
+            ))
 
     def test_trace_client_pipeline(self):
         redis_opentracing.init_tracing(self.tracer,
@@ -216,9 +221,14 @@ class TestClient(unittest.TestCase):
                 'db.type': 'redis',
                 'db.statement': 'LPUSH my:keys 1 3;LPUSH my:keys 5 7',
                 'span.kind': 'client',
-                'error': 'true',
-                'error.object': call_exc,
+                'error': True,
             })
+            self.assertEqual(len(span.logs), 1)
+            self.assertEqual(span.logs[0].key_values.get('event', None),
+                             'error')
+            self.assertTrue(isinstance(
+                span.logs[0].key_values.get('error.object', None), ValueError
+            ))
 
     def test_trace_pubsub(self):
         pubsub = self.client.pubsub()
@@ -306,9 +316,15 @@ class TestClient(unittest.TestCase):
                 'db.type': 'redis',
                 'db.statement': '',
                 'span.kind': 'client',
-                'error': 'true',
-                'error.object': call_exc,
+                'error': True,
             })
+            self.assertEqual(len(span.logs), 1)
+            self.assertEqual(span.logs[0].key_values.get('event', None),
+                             'error')
+            self.assertTrue(isinstance(
+                span.logs[0].key_values.get('error.object', None), ValueError
+            ))
+
 
     def test_trace_all_client(self):
         with patch('redis.StrictRedis.execute_command') as execute_command:
