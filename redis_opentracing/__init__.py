@@ -1,5 +1,6 @@
 from functools import wraps
 
+import opentracing
 import redis
 
 g_tracer = None
@@ -7,7 +8,7 @@ g_trace_prefix = None
 g_trace_all_classes = True
 
 
-def init_tracing(tracer, trace_all_classes=True, prefix='Redis'):
+def init_tracing(tracer=None, trace_all_classes=True, prefix='Redis'):
     """
     Set our tracer for Redis. Tracer objects from the
     OpenTracing django/flask/pyramid libraries can be passed as well.
@@ -63,6 +64,10 @@ def trace_pubsub(pubsub):
     will be traced too with their respective command name.
     """
     _patch_pubsub(pubsub)
+
+
+def _get_tracer():
+    return opentracing.tracer if g_tracer is None else g_tracer
 
 
 def _get_operation_name(operation_name):
@@ -143,6 +148,8 @@ def _patch_client(client):
 
 
 def _patch_pipe_execute(pipe):
+    tracer = _get_tracer()
+
     # Patch the execute() method.
     execute_method = pipe.execute
 
@@ -152,7 +159,7 @@ def _patch_pipe_execute(pipe):
             # Nothing to process/handle.
             return execute_method(raise_on_error=raise_on_error)
 
-        with g_tracer.start_active_span(_get_operation_name('MULTI')) as scope:
+        with tracer.start_active_span(_get_operation_name('MULTI')) as scope:
             span = scope.span
             _set_base_span_tags(span, _normalize_stmts(pipe.command_stack))
 
@@ -173,7 +180,7 @@ def _patch_pipe_execute(pipe):
     @wraps(immediate_execute_method)
     def tracing_immediate_execute_command(*args, **options):
         command = args[0]
-        with g_tracer.start_active_span(_get_operation_name(command)) as scope:
+        with tracer.start_active_span(_get_operation_name(command)) as scope:
             span = scope.span
             _set_base_span_tags(span, _normalize_stmt(args))
 
@@ -192,12 +199,14 @@ def _patch_pubsub(pubsub):
 
 
 def _patch_pubsub_parse_response(pubsub):
+    tracer = _get_tracer()
+
     # Patch the parse_response() method.
     parse_response_method = pubsub.parse_response
 
     @wraps(parse_response_method)
     def tracing_parse_response(block=True, timeout=0):
-        with g_tracer.start_active_span(_get_operation_name('SUB')) as scope:
+        with tracer.start_active_span(_get_operation_name('SUB')) as scope:
             span = scope.span
             _set_base_span_tags(span, '')
 
@@ -214,6 +223,8 @@ def _patch_pubsub_parse_response(pubsub):
 
 
 def _patch_obj_execute_command(redis_obj, is_klass=False):
+    tracer = _get_tracer()
+
     execute_command_method = redis_obj.execute_command
 
     @wraps(execute_command_method)
@@ -226,7 +237,7 @@ def _patch_obj_execute_command(redis_obj, is_klass=False):
 
         command = reported_args[0]
 
-        with g_tracer.start_active_span(_get_operation_name(command)) as scope:
+        with tracer.start_active_span(_get_operation_name(command)) as scope:
             span = scope.span
             _set_base_span_tags(span, _normalize_stmt(reported_args))
 
