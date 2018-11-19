@@ -26,8 +26,7 @@ class TestClient(unittest.TestCase):
             exc_command.__name__ = 'execute_command'
 
             redis_opentracing.init_tracing(self.tracer,
-                                           trace_all_classes=False,
-                                           prefix='Test')
+                                           trace_all_classes=False)
 
             self.client.get('my.key')
             self.assertEqual(exc_command.call_count, 1)
@@ -40,8 +39,7 @@ class TestClient(unittest.TestCase):
             exc_command.__name__ = 'execute_command'
 
             redis_opentracing.init_tracing(self.tracer,
-                                           trace_all_classes=False,
-                                           prefix='Test')
+                                           trace_all_classes=False)
             redis_opentracing.trace_client(self.client)
             res = self.client.get('my.key')
 
@@ -50,7 +48,7 @@ class TestClient(unittest.TestCase):
             self.assertTrue(True, exc_command.call_args == (('my.key',),))
             self.assertEqual(len(self.tracer.finished_spans()), 1)
             span = self.tracer.finished_spans()[0]
-            self.assertEqual(span.operation_name, 'Test/GET')
+            self.assertEqual(span.operation_name, 'GET')
             self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
@@ -65,8 +63,7 @@ class TestClient(unittest.TestCase):
             exc_command.__name__ = 'execute_command'
 
             redis_opentracing.init_tracing(self.tracer,
-                                           trace_all_classes=False,
-                                           prefix='Test')
+                                           trace_all_classes=False)
             redis_opentracing.trace_client(self.client)
 
             call_exc = None
@@ -79,7 +76,7 @@ class TestClient(unittest.TestCase):
             self.assertTrue(True, exc_command.call_args == (('my.key',),))
             self.assertEqual(len(self.tracer.finished_spans()), 1)
             span = self.tracer.finished_spans()[0]
-            self.assertEqual(span.operation_name, 'Test/GET')
+            self.assertEqual(span.operation_name, 'GET')
             self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
@@ -96,8 +93,7 @@ class TestClient(unittest.TestCase):
 
     def test_trace_client_pipeline(self):
         redis_opentracing.init_tracing(self.tracer,
-                                       trace_all_classes=False,
-                                       prefix='Test')
+                                       trace_all_classes=False)
         redis_opentracing.trace_client(self.client)
 
         pipe = self.client.pipeline()
@@ -106,7 +102,7 @@ class TestClient(unittest.TestCase):
         pipe.execute()
         self.assertEqual(len(self.tracer.finished_spans()), 1)
         span = self.tracer.finished_spans()[0]
-        self.assertEqual(span.operation_name, 'Test/MULTI')
+        self.assertEqual(span.operation_name, 'MULTI')
         self.assertEqual(span.tags, {
             'component': 'redis-py',
             'db.type': 'redis',
@@ -116,8 +112,7 @@ class TestClient(unittest.TestCase):
 
     def test_trace_client_pubsub(self):
         redis_opentracing.init_tracing(self.tracer,
-                                       trace_all_classes=False,
-                                       prefix='Test')
+                                       trace_all_classes=False)
         redis_opentracing.trace_client(self.client)
 
         pubsub = self.client.pubsub()
@@ -126,7 +121,7 @@ class TestClient(unittest.TestCase):
         # Subscribing can cause more than a SUBSCRIBE call.
         self.assertTrue(len(self.tracer.finished_spans()) >= 1)
         span = self.tracer.finished_spans()[0]
-        self.assertEqual(span.operation_name, 'Test/SUBSCRIBE')
+        self.assertEqual(span.operation_name, 'SUBSCRIBE')
         self.assertEqual(span.tags, {
             'component': 'redis-py',
             'db.type': 'redis',
@@ -140,8 +135,7 @@ class TestClient(unittest.TestCase):
             execute.__name__ = 'execute'
 
             redis_opentracing.init_tracing(self.tracer,
-                                           trace_all_classes=False,
-                                           prefix='Test')
+                                           trace_all_classes=False)
             redis_opentracing.trace_pipeline(pipe)
             pipe.lpush('my:keys', 1, 3)
             pipe.lpush('my:keys', 5, 7)
@@ -149,7 +143,7 @@ class TestClient(unittest.TestCase):
 
             self.assertEqual(execute.call_count, 1)
             self.assertEqual(len(self.tracer.finished_spans()), 1)
-            self.assertEqual(self.tracer.finished_spans()[0].operation_name, 'Test/MULTI')
+            self.assertEqual(self.tracer.finished_spans()[0].operation_name, 'MULTI')
             self.assertEqual(self.tracer.finished_spans()[0].tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
@@ -163,8 +157,7 @@ class TestClient(unittest.TestCase):
             execute.__name__ = 'execute'
 
             redis_opentracing.init_tracing(self.tracer,
-                                           trace_all_classes=False,
-                                           prefix='Test')
+                                           trace_all_classes=False)
 
             # No commands at all.
             redis_opentracing.trace_pipeline(pipe)
@@ -178,15 +171,14 @@ class TestClient(unittest.TestCase):
         with patch.object(pipe, 'immediate_execute_command') as iexecute:
             iexecute.__name__ = 'immediate_execute_command'
             redis_opentracing.init_tracing(self.tracer,
-                                           trace_all_classes=False,
-                                           prefix='Test')
+                                           trace_all_classes=False)
 
             redis_opentracing.trace_pipeline(pipe)
             pipe.immediate_execute_command('WATCH', 'my:key')
             self.assertEqual(iexecute.call_count, 1)
             self.assertEqual(len(self.tracer.finished_spans()), 1)
             span = self.tracer.finished_spans()[0]
-            self.assertEqual(span.operation_name, 'Test/WATCH')
+            self.assertEqual(span.operation_name, 'WATCH')
             self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
@@ -200,8 +192,7 @@ class TestClient(unittest.TestCase):
             execute.__name__ = 'execute'
 
             redis_opentracing.init_tracing(self.tracer,
-                                           trace_all_classes=False,
-                                           prefix='Test')
+                                           trace_all_classes=False)
             redis_opentracing.trace_pipeline(pipe)
             pipe.lpush('my:keys', 1, 3)
             pipe.lpush('my:keys', 5, 7)
@@ -215,7 +206,7 @@ class TestClient(unittest.TestCase):
             self.assertEqual(execute.call_count, 1)
             self.assertEqual(len(self.tracer.finished_spans()), 1)
             span = self.tracer.finished_spans()[0]
-            self.assertEqual(span.operation_name, 'Test/MULTI')
+            self.assertEqual(span.operation_name, 'MULTI')
             self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
@@ -244,8 +235,7 @@ class TestClient(unittest.TestCase):
             parse_response.__name__ = 'parse_response'
 
             redis_opentracing.init_tracing(self.tracer,
-                                           trace_all_classes=False,
-                                           prefix='Test')
+                                           trace_all_classes=False)
             redis_opentracing.trace_pubsub(pubsub)
             res = pubsub.get_message()
 
@@ -257,7 +247,7 @@ class TestClient(unittest.TestCase):
             })
             self.assertEqual(parse_response.call_count, 1)
             self.assertEqual(len(self.tracer.finished_spans()), 1)
-            self.assertEqual(self.tracer.finished_spans()[0].operation_name, 'Test/SUB')
+            self.assertEqual(self.tracer.finished_spans()[0].operation_name, 'SUB')
             self.assertEqual(self.tracer.finished_spans()[0].tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
@@ -273,15 +263,14 @@ class TestClient(unittest.TestCase):
             execute_command.__name__ = 'parse_response'
 
             redis_opentracing.init_tracing(self.tracer,
-                                           trace_all_classes=False,
-                                           prefix='Test')
+                                           trace_all_classes=False)
             redis_opentracing.trace_pubsub(pubsub)
             res = pubsub.execute_command('GET', 'foo')
 
             self.assertEqual(res, 'hello')
             self.assertEqual(execute_command.call_count, 1)
             self.assertEqual(len(self.tracer.finished_spans()), 1)
-            self.assertEqual(self.tracer.finished_spans()[0].operation_name, 'Test/GET')
+            self.assertEqual(self.tracer.finished_spans()[0].operation_name, 'GET')
             self.assertEqual(self.tracer.finished_spans()[0].tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
@@ -297,8 +286,7 @@ class TestClient(unittest.TestCase):
             parse_response.__name__ = 'parse_response'
 
             redis_opentracing.init_tracing(self.tracer,
-                                           trace_all_classes=False,
-                                           prefix='Test')
+                                           trace_all_classes=False)
             redis_opentracing.trace_pubsub(pubsub)
 
             call_exc = None
@@ -310,7 +298,7 @@ class TestClient(unittest.TestCase):
             self.assertEqual(parse_response.call_count, 1)
             self.assertEqual(len(self.tracer.finished_spans()), 1)
             span = self.tracer.finished_spans()[0]
-            self.assertEqual(span.operation_name, 'Test/SUB')
+            self.assertEqual(span.operation_name, 'SUB')
             self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
@@ -329,14 +317,14 @@ class TestClient(unittest.TestCase):
     def test_trace_all_client(self):
         with patch('redis.StrictRedis.execute_command') as execute_command:
             execute_command.__name__ = 'execute_command'
-            redis_opentracing.init_tracing(self.tracer, prefix='Test')
+            redis_opentracing.init_tracing(self.tracer)
 
             self.client.get('my.key')
             self.assertEqual(execute_command.call_count, 1)
             self.assertTrue(True, execute_command.call_args == (('my.key',),))
             self.assertEqual(len(self.tracer.finished_spans()), 1)
             span = self.tracer.finished_spans()[0]
-            self.assertEqual(span.operation_name, 'Test/GET')
+            self.assertEqual(span.operation_name, 'GET')
             self.assertEqual(span.tags, {
                 'component': 'redis-py',
                 'db.type': 'redis',
@@ -345,7 +333,7 @@ class TestClient(unittest.TestCase):
             })
 
     def test_trace_all_pipeline(self):
-        redis_opentracing.init_tracing(self.tracer, prefix='Test')
+        redis_opentracing.init_tracing(self.tracer)
         pipe = self.client.pipeline()
         pipe.lpush('my:keys', 1, 3)
         pipe.rpush('my:keys', 5, 7)
@@ -353,7 +341,7 @@ class TestClient(unittest.TestCase):
 
         self.assertEqual(len(self.tracer.finished_spans()), 1)
         span = self.tracer.finished_spans()[0]
-        self.assertEqual(span.operation_name, 'Test/MULTI')
+        self.assertEqual(span.operation_name, 'MULTI')
         self.assertEqual(span.tags, {
             'component': 'redis-py',
             'db.type': 'redis',
@@ -362,14 +350,14 @@ class TestClient(unittest.TestCase):
         })
 
     def test_trace_all_pubsub(self):
-        redis_opentracing.init_tracing(self.tracer, prefix='Test')
+        redis_opentracing.init_tracing(self.tracer)
         pubsub = self.client.pubsub()
         pubsub.subscribe('test')
 
         # Subscribing can cause more than a SUBSCRIBE call.
         self.assertTrue(len(self.tracer.finished_spans()) >= 1)
         span = self.tracer.finished_spans()[0]
-        self.assertEqual(span.operation_name, 'Test/SUBSCRIBE')
+        self.assertEqual(span.operation_name, 'SUBSCRIBE')
         self.assertEqual(span.tags, {
             'component': 'redis-py',
             'db.type': 'redis',
