@@ -6,9 +6,10 @@ import redis
 
 g_tracer = None
 g_trace_all_classes = True
+g_start_span_cb = None
 
 
-def init_tracing(tracer=None, trace_all_classes=True):
+def init_tracing(tracer=None, trace_all_classes=True, start_span_cb=None):
     """
     Set our tracer for Redis. Tracer objects from the
     OpenTracing django/flask/pyramid libraries can be passed as well.
@@ -18,12 +19,16 @@ def init_tracing(tracer=None, trace_all_classes=True):
         are automatically traced. Else, explicit tracing on them
         is required.
     """
-    global g_tracer, g_trace_all_classes
+    if start_span_cb is not None and not callable(start_span_cb):
+        raise ValueError('start_span_cb is not callable')
+
+    global g_tracer, g_trace_all_classes, g_start_span_cb
     if hasattr(tracer, '_tracer'):
         tracer = tracer._tracer
 
     g_tracer = tracer
     g_trace_all_classes = trace_all_classes
+    g_start_span_cb = start_span_cb
 
     if g_trace_all_classes:
         _patch_redis_classes()
@@ -153,6 +158,8 @@ def _patch_pipe_execute(pipe):
             span = scope.span
             _set_base_span_tags(span, _normalize_stmts(pipe.command_stack))
 
+            _call_start_span_cb(span)
+
             try:
                 res = execute_method(raise_on_error=raise_on_error)
             except Exception as exc:
@@ -176,6 +183,8 @@ def _patch_pipe_execute(pipe):
         with tracer.start_active_span(command) as scope:
             span = scope.span
             _set_base_span_tags(span, _normalize_stmt(args))
+
+            _call_start_span_cb(span)
 
             try:
                 immediate_execute_method(*args, **options)
@@ -205,6 +214,8 @@ def _patch_pubsub_parse_response(pubsub):
         with tracer.start_active_span('SUB') as scope:
             span = scope.span
             _set_base_span_tags(span, '')
+
+            _call_start_span_cb(span)
 
             try:
                 rv = parse_response_method(block=block, timeout=timeout)
@@ -240,6 +251,8 @@ def _patch_obj_execute_command(redis_obj, is_klass=False):
             span = scope.span
             _set_base_span_tags(span, _normalize_stmt(reported_args))
 
+            _call_start_span_cb(span)
+
             try:
                 rv = execute_command_method(*args, **kwargs)
             except Exception as exc:
@@ -253,3 +266,13 @@ def _patch_obj_execute_command(redis_obj, is_klass=False):
         return rv
 
     redis_obj.execute_command = tracing_execute_command
+
+
+def _call_start_span_cb(span):
+    if g_start_span_cb is None:
+        return
+
+    try:
+        g_start_span_cb(span)
+    except Exception:
+        pass

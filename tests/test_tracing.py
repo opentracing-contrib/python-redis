@@ -91,6 +91,43 @@ class TestClient(unittest.TestCase):
                 span.logs[0].key_values.get('error.object', None), ValueError
             ))
 
+    def test_trace_client_start_span_cb(self):
+        def start_span_cb(span):
+            span.set_operation_name('Test')
+
+        with patch.object(self.client,
+                          'execute_command',
+                          return_value='1') as exc_command:
+            exc_command.__name__ = 'execute_command'
+
+            redis_opentracing.init_tracing(self.tracer,
+                                           trace_all_classes=False,
+                                           start_span_cb=start_span_cb)
+            redis_opentracing.trace_client(self.client)
+            res = self.client.get('my.key')
+
+            span = self.tracer.finished_spans()[0]
+            self.assertEqual(span.operation_name, 'Test')
+
+    def test_trace_client_start_span_cb_exc(self):
+        def start_span_cb(span):
+            raise RuntimeError('This should not happen')
+
+        with patch.object(self.client,
+                          'execute_command',
+                          return_value='1') as exc_command:
+            exc_command.__name__ = 'execute_command'
+
+            redis_opentracing.init_tracing(self.tracer,
+                                           trace_all_classes=False,
+                                           start_span_cb=start_span_cb)
+            redis_opentracing.trace_client(self.client)
+            res = self.client.get('my.key')
+
+            span = self.tracer.finished_spans()[0]
+            self.assertEqual(span.operation_name, 'GET')
+            self.assertFalse(span.tags.get('error', False))
+
     def test_trace_client_pipeline(self):
         redis_opentracing.init_tracing(self.tracer,
                                        trace_all_classes=False)
@@ -150,6 +187,25 @@ class TestClient(unittest.TestCase):
                 'db.statement': 'LPUSH my:keys 1 3;LPUSH my:keys 5 7',
                 'span.kind': 'client',
             })
+
+    def test_trace_pipeline_start_span_cb(self):
+        def start_span_cb(span):
+            span.set_operation_name('Test')
+
+        pipe = self.client.pipeline()
+        with patch.object(pipe, 'execute') as execute:
+            execute.__name__ = 'execute'
+
+            redis_opentracing.init_tracing(self.tracer,
+                                           trace_all_classes=False,
+                                           start_span_cb=start_span_cb)
+            redis_opentracing.trace_pipeline(pipe)
+            pipe.lpush('my:keys', 1, 3)
+            pipe.execute()
+
+            spans = self.tracer.finished_spans()
+            self.assertEqual(len(spans), 1)
+            self.assertEqual(spans[0].operation_name, 'Test')
 
     def test_trace_pipeline_empty(self):
         pipe = self.client.pipeline()
@@ -254,6 +310,32 @@ class TestClient(unittest.TestCase):
                 'db.statement': '',
                 'span.kind': 'client',
             })
+
+    def test_trace_pubsub_start_span_cb(self):
+        def start_span_cb(span):
+            span.set_operation_name('Test')
+
+        pubsub = self.client.pubsub()
+        return_value = [ # Simulate a real message
+            'pmessage',
+            'pattern1',
+            'channel1',
+            'hello',
+        ]
+
+        with patch.object(pubsub, 'parse_response',
+                          return_value=return_value) as parse_response:
+            parse_response.__name__ = 'parse_response'
+
+            redis_opentracing.init_tracing(self.tracer,
+                                           trace_all_classes=False,
+                                           start_span_cb=start_span_cb)
+            redis_opentracing.trace_pubsub(pubsub)
+            res = pubsub.get_message()
+
+            spans = self.tracer.finished_spans()
+            self.assertEqual(len(spans), 1)
+            self.assertEqual(spans[0].operation_name, 'Test')
 
     def test_trace_pubsub_execute_command(self):
         pubsub = self.client.pubsub()
