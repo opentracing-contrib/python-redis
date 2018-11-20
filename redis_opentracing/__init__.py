@@ -4,9 +4,9 @@ import opentracing
 from opentracing.ext import tags
 import redis
 
-g_tracer = None
-g_trace_all_classes = True
-g_start_span_cb = None
+_g_tracer = None
+_g_trace_all_classes = True
+_g_start_span_cb = None
 
 
 def init_tracing(tracer=None, trace_all_classes=True, start_span_cb=None):
@@ -22,15 +22,15 @@ def init_tracing(tracer=None, trace_all_classes=True, start_span_cb=None):
     if start_span_cb is not None and not callable(start_span_cb):
         raise ValueError('start_span_cb is not callable')
 
-    global g_tracer, g_trace_all_classes, g_start_span_cb
+    global _g_tracer, _g_trace_all_classes, _g_start_span_cb
     if hasattr(tracer, '_tracer'):
         tracer = tracer._tracer
 
-    g_tracer = tracer
-    g_trace_all_classes = trace_all_classes
-    g_start_span_cb = start_span_cb
+    _g_tracer = tracer
+    _g_trace_all_classes = trace_all_classes
+    _g_start_span_cb = start_span_cb
 
-    if g_trace_all_classes:
+    if _g_trace_all_classes:
         _patch_redis_classes()
 
 
@@ -69,7 +69,7 @@ def trace_pubsub(pubsub):
 
 
 def _get_tracer():
-    return opentracing.tracer if g_tracer is None else g_tracer
+    return opentracing.tracer if _g_tracer is None else _g_tracer
 
 
 def _normalize_stmt(args):
@@ -269,10 +269,10 @@ def _patch_obj_execute_command(redis_obj, is_klass=False):
 
 
 def _call_start_span_cb(span):
-    if g_start_span_cb is None:
+    if _g_start_span_cb is None:
         return
 
     try:
-        g_start_span_cb(span)
+        _g_start_span_cb(span)
     except Exception:
         pass
