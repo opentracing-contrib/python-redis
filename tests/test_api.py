@@ -16,6 +16,7 @@ class TestGlobalCalls(unittest.TestCase):
     def tearDown(self):
         redis.StrictRedis.execute_command = self._execute_command
         redis.StrictRedis.pipeline = self._pipeline
+        redis_opentracing._reset_tracing()
 
     def test_init(self):
         tracer = MockTracer()

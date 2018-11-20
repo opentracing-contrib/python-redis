@@ -5,7 +5,7 @@ from opentracing.ext import tags
 import redis
 
 _g_tracer = None
-_g_trace_all_classes = True
+_g_trace_all_classes = None
 _g_start_span_cb = None
 
 
@@ -66,6 +66,11 @@ def trace_pubsub(pubsub):
     will be traced too with their respective command name.
     """
     _patch_pubsub(pubsub)
+
+
+def _reset_tracing():
+    global _g_tracer, _g_trace_all_classes, _g_start_span_cb
+    _g_tracer = _g_trace_all_classes = _g_start_span_cb = None
 
 
 def _get_tracer():
