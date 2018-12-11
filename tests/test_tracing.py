@@ -4,6 +4,7 @@ import unittest
 
 import redis
 import redis_opentracing
+from redis_opentracing import tracing
 
 
 class TestTracing(unittest.TestCase):
@@ -19,6 +20,7 @@ class TestTracing(unittest.TestCase):
     def tearDown(self):
         redis.StrictRedis.execute_command = self._execute_command
         redis.StrictRedis.pipeline = self._pipeline
+        tracing._reset_tracing()
 
     def test_trace_nothing(self):
         with patch.object(self.client,
