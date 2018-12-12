@@ -9,6 +9,8 @@ Redis Opentracing
 
 This package enables distributed tracing for the Python redis library.
 
+**Note**: If you need to use the old OpenTracing 1.0 API, use the 0.x releases.
+
 Installation
 ============
 
@@ -19,7 +21,7 @@ Run the following command:
 Getting started
 ===============
 
-Tracing a Redis client requires setting up an OpenTracing-compatible tracer, and calling `init_tracing` to set up the tracing wrappers. See the examples directory for several different approaches.
+Tracing a Redis client requires setting up an OpenTracing-compatible tracer, and calling ``init_tracing()`` to set up the tracing wrappers. See the examples directory for several different approaches.
 
 .. code-block:: python
 
@@ -56,7 +58,7 @@ It's also possible to trace only specific pipelines:
     pipe.rpush('fruits', 'pineapple', 'apple')
     pipe.execute()
 
-When pipeline commands are executed as a transaction, these commands will be grouped under a single 'MULTI' operation. They'll also appear as a single operation in the trace. Outside of a transaction, each command will generate a span.
+When pipeline commands are executed as a transaction, these commands will be grouped under a single ``MULTI`` operation. They'll also appear as a single operation in the trace. Outside of a transaction, each command will generate a span.
 
 And it's also possible to trace only specific pubsub objects:
 
@@ -70,7 +72,7 @@ And it's also possible to trace only specific pubsub objects:
     pubsub.subscribe('incoming-fruits')
     msg = pubsub.get_message() # This message will appear as a 'SUB' operation.
 
-Incoming messages through `get_message`, `listen` and `run_in_thread` will be traced, and any command executed through the pubsub's `execute_command` method will be traced too.
+Incoming messages through ``get_message()``, ``listen()`` and ``run_in_thread()`` will be traced, and any command executed through the pubsub's ``execute_command()`` method will be traced too.
 
 Further information
 ===================
