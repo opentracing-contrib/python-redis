@@ -11,15 +11,6 @@ class TestPipeline(unittest.TestCase):
         self.tracer = MockTracer()
         self.client = redis.StrictRedis()
 
-        # Stash away the original methods for
-        # after-test restoration.
-        self._execute_command = redis.StrictRedis.execute_command
-        self._pipeline = redis.StrictRedis.pipeline
-
-    def tearDown(self):
-        redis.StrictRedis.execute_command = self._execute_command
-        redis.StrictRedis.pipeline = self._pipeline
-
     def test_trace_pipeline(self):
         pipe = self.client.pipeline()
         with patch.object(pipe, 'execute') as execute:
