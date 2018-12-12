@@ -1,9 +1,10 @@
+import mock
 import unittest
 
+from opentracing.mocktracer import MockTracer
 import redis
 import redis_opentracing
-
-from .dummies import *
+from redis_opentracing import tracing
 
 
 class TestGlobalCalls(unittest.TestCase):
@@ -16,26 +17,36 @@ class TestGlobalCalls(unittest.TestCase):
     def tearDown(self):
         redis.StrictRedis.execute_command = self._execute_command
         redis.StrictRedis.pipeline = self._pipeline
+        tracing._reset_tracing()
 
     def test_init(self):
-        tracer = DummyTracer()
+        tracer = MockTracer()
         redis_opentracing.init_tracing(tracer)
-        self.assertEqual(tracer, redis_opentracing.g_tracer)
-        self.assertEqual(True, redis_opentracing.g_trace_all_classes)
-        self.assertEqual('Redis', redis_opentracing.g_trace_prefix)
-
+        self.assertEqual(tracer, tracing._g_tracer)
+        self.assertEqual(tracer, tracing._get_tracer())
+        self.assertEqual(True, tracing._g_trace_all_classes)
 
     def test_init_subtracer(self):
-        tracer = DummyTracer(with_subtracer=True)
+        tracer = MockTracer()
+        tracer._tracer = object()
         redis_opentracing.init_tracing(tracer)
-        self.assertEqual(tracer._tracer, redis_opentracing.g_tracer)
-        self.assertEqual(True, redis_opentracing.g_trace_all_classes)
-        self.assertEqual('Redis', redis_opentracing.g_trace_prefix)
+        self.assertEqual(tracer._tracer, tracing._g_tracer)
+        self.assertEqual(tracer._tracer, tracing._get_tracer())
+        self.assertEqual(True, tracing._g_trace_all_classes)
 
+    def test_init_start_span_cb_invalid(self):
+        with self.assertRaises(ValueError):
+            redis_opentracing.init_tracing(start_span_cb=1)
 
-    def test_init_trace_prefix(self):
-        redis_opentracing.init_tracing(DummyTracer(), prefix='Prod007')
-        self.assertEqual('Prod007', redis_opentracing.g_trace_prefix)
+    def test_init_start_span_cb(self):
+        def start_span_cb(span):
+            pass
 
-        redis_opentracing.init_tracing(DummyTracer(), prefix='')
-        self.assertEqual('', redis_opentracing.g_trace_prefix)
+        redis_opentracing.init_tracing(start_span_cb=start_span_cb)
+        self.assertEqual(start_span_cb, tracing._g_start_span_cb)
+
+    def test_init_global_tracer(self):
+        with mock.patch('opentracing.tracer') as tracer:
+            redis_opentracing.init_tracing()
+            self.assertIsNone(tracing._g_tracer)
+            self.assertEqual(tracer, tracing._get_tracer())

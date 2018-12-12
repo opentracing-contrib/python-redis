@@ -15,7 +15,7 @@ setup(
     platforms='any',
     install_requires=[
         'redis',
-        'opentracing>=1.1,<2.0'
+        'opentracing>=2.0,<2.1'
     ],
     extras_require={
         'tests': [

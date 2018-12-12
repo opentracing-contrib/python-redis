@@ -1,5 +1,8 @@
 project := redis_opentracing
 
+pytest := PYTHONDONTWRITEBYTECODE=1 py.test --tb short -rxs \
+        --cov-report term-missing:skip-covered --cov=$(project) tests
+
 .PHONY: test publish install clean clean-build clean-pyc clean-test build
 
 install: 
@@ -34,7 +37,7 @@ lint:
 	flake8 $(project)
 
 test:
-	py.test -s --cov=$(project)
+	$(pytest)
 
 build: 
 	python setup.py build
