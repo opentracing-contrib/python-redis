@@ -21,13 +21,14 @@ Run the following command:
 Getting started
 ===============
 
-Tracing a Redis client requires setting up an OpenTracing-compatible tracer, and calling ``init_tracing()`` to set up the tracing wrappers. See the examples directory for several different approaches.
+Tracing a Redis client requires calling ``init_tracing()`` and optionally specify an OpenTracing-compatible tracer. See the examples directory for several different approaches.
 
 .. code-block:: python
 
     import redis
     import redis_opentracing
 
+    # If not provided, opentracing.tracer will be used.
     redis_opentracing.init_tracing(tracer)
 
     client = redis.StrictRedis()
