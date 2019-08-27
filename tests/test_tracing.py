@@ -52,6 +52,24 @@ class TestTracing(unittest.TestCase):
                 'span.kind': 'client',
             })
 
+    def test_trace_all_client_with_unicode(self):
+        with patch('redis.StrictRedis.execute_command') as execute_command:
+            execute_command.__name__ = 'execute_command'
+            redis_opentracing.init_tracing(self.tracer)
+
+            self.client.get(u'my.k\xc3y')
+            self.assertEqual(execute_command.call_count, 1)
+            self.assertTrue(True, execute_command.call_args == ((u'my.k\xc3y',),))
+            self.assertEqual(len(self.tracer.finished_spans()), 1)
+            span = self.tracer.finished_spans()[0]
+            self.assertEqual(span.operation_name, 'GET')
+            self.assertEqual(span.tags, {
+                'component': 'redis-py',
+                'db.type': 'redis',
+                'db.statement': u'GET my.k\xc3y',
+                'span.kind': 'client',
+            })
+
     def test_trace_all_pipeline(self):
         redis_opentracing.init_tracing(self.tracer)
         pipe = self.client.pipeline()

@@ -9,11 +9,12 @@ setup(
     license='Apache License 2.0',
     author='Carlos Alberto Cortez',
     author_email='calberto.cortez@gmail.com',
-    description='OpenTracing support for Elasticsearch',
+    description='OpenTracing support for Redis',
     long_description=open('README.rst').read(),
     packages=['redis_opentracing'],
     platforms='any',
     install_requires=[
+        'future',
         'redis',
         'opentracing>=2.0,<2.1'
     ],
@@ -23,7 +24,7 @@ setup(
             'flake8-quotes',
             'mock<1.1.0',
             'pytest>=2.7,<3',
-            'pytest-cov',
+            'pytest-cov<2.6.0',
         ]
     },
     classifiers=[
