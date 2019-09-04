@@ -1,3 +1,4 @@
+from builtins import str
 from functools import wraps
 
 import opentracing
