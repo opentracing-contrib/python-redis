@@ -16,6 +16,8 @@ Installation
 
 Run the following command:
 
+.. code-block:: sh
+
     $ pip install redis_opentracing
 
 Getting started
